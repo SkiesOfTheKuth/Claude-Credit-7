@@ -1,7 +1,7 @@
 import { simpleGit, SimpleGit, DefaultLogFields, LogResult } from 'simple-git';
 import { resolve } from 'path';
 import { InvalidRepositoryError, GitOperationError } from '../utils/errors.js';
-import type { Commit, RepositoryInfo, AnalysisOptions } from '../types/index.js';
+import type { Commit, RepositoryInfo, AnalysisOptions, CommitWithFiles, FileChange } from '../types/index.js';
 
 /**
  * Wrapper around simple-git for repository operations
@@ -173,6 +173,113 @@ export class Repository {
       throw new GitOperationError(
         'getCommits',
         'Failed to fetch commits',
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  /**
+   * Fetches commits with file change information
+   * Includes statistics about which files were modified and line-level changes
+   */
+  async getCommitsWithFiles(options: Partial<AnalysisOptions> = {}): Promise<CommitWithFiles[]> {
+    await this.ensureValid();
+
+    try {
+      const logOptions: Record<string, unknown> = {
+        format: {
+          hash: '%H',
+          author: '%an',
+          email: '%ae',
+          date: '%ai',
+          message: '%s',
+          refs: '%D',
+          body: '%b',
+        },
+        '--stat': null, // Include file statistics
+      };
+
+      // Add filters based on options
+      if (options.branch) {
+        logOptions.from = options.branch;
+      }
+
+      if (options.since) {
+        logOptions.after = options.since instanceof Date
+          ? options.since.toISOString()
+          : options.since;
+      }
+
+      if (options.until) {
+        logOptions.before = options.until instanceof Date
+          ? options.until.toISOString()
+          : options.until;
+      }
+
+      if (options.author) {
+        logOptions.author = options.author;
+      }
+
+      if (options.maxCount) {
+        logOptions.maxCount = options.maxCount;
+      }
+
+      const log = await this.git.log(logOptions);
+
+      // Transform to our CommitWithFiles type
+      return log.all.map((commit) => {
+        const rawCommit = commit as unknown as {
+          hash: string;
+          author?: string;
+          email?: string;
+          date: string;
+          message: string;
+          refs?: string;
+          body?: string;
+          diff?: {
+            changed: number;
+            insertions: number;
+            deletions: number;
+            files: Array<{
+              file: string;
+              changes: number;
+              insertions: number;
+              deletions: number;
+              binary: boolean;
+            }>;
+          };
+        };
+
+        const files: FileChange[] = rawCommit.diff?.files
+          ? rawCommit.diff.files.map((f) => ({
+              file: f.file,
+              changes: f.changes,
+              insertions: f.insertions,
+              deletions: f.deletions,
+              binary: f.binary,
+            }))
+          : [];
+
+        return {
+          hash: rawCommit.hash,
+          author: rawCommit.author || 'Unknown',
+          email: rawCommit.email || '',
+          date: new Date(rawCommit.date),
+          message: rawCommit.message,
+          refs: rawCommit.refs || '',
+          body: rawCommit.body || '',
+          files,
+          diffSummary: {
+            changed: rawCommit.diff?.changed || 0,
+            insertions: rawCommit.diff?.insertions || 0,
+            deletions: rawCommit.diff?.deletions || 0,
+          },
+        };
+      });
+    } catch (error) {
+      throw new GitOperationError(
+        'getCommitsWithFiles',
+        'Failed to fetch commits with file information',
         error instanceof Error ? error : undefined
       );
     }

@@ -81,3 +81,11 @@ export enum AnalysisErrorType {
   INVALID_OPTIONS = 'INVALID_OPTIONS',
   ANALYSIS_FAILED = 'ANALYSIS_FAILED',
 }
+
+// Re-export file-related types
+export type {
+  FileChange,
+  FileStats,
+  FileAnalysis,
+  CommitWithFiles,
+} from './files.js';
