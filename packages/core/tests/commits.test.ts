@@ -152,6 +152,35 @@ describe('CommitAnalyzer', () => {
       expect(result.dateRange.spanDays).toBe(31); // Jan 1 to Jan 31 is 31 days
     });
 
+    it('should calculate correct date range across day boundary', () => {
+      const commits = [
+        createMockCommit(
+          'abc123',
+          'John Doe',
+          'john@example.com',
+          new Date('2024-01-01T23:00:00Z'),
+          'First'
+        ),
+        createMockCommit(
+          'def456',
+          'John Doe',
+          'john@example.com',
+          new Date('2024-01-02T01:00:00Z'),
+          'Last'
+        ),
+      ];
+
+      const result = analyzer.analyze(commits);
+
+      expect(result.dateRange.earliest).toEqual(
+        new Date('2024-01-01T23:00:00Z')
+      );
+      expect(result.dateRange.latest).toEqual(
+        new Date('2024-01-02T01:00:00Z')
+      );
+      expect(result.dateRange.spanDays).toBe(2);
+    });
+
     it('should rank top authors correctly', () => {
       const commits = [
         createMockCommit('a1', 'Alice', 'alice@example.com', new Date(), 'c1'),
@@ -209,8 +238,8 @@ describe('CommitAnalyzer', () => {
 
       const result = analyzer.analyze(commits);
 
-      // 3 commits over 10 days = 0.3 per day
-      expect(result.averageCommitsPerDay).toBe(0.3);
+      // 3 commits over 11 days (Jan 1 to Jan 11 inclusive)
+      expect(result.averageCommitsPerDay).toBeCloseTo(0.27);
     });
   });
 
