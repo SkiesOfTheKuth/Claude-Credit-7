@@ -294,4 +294,37 @@ describe('FileAnalyzer', () => {
       expect(churn.get('low-churn.ts')).toBe(10);
     });
   });
+
+  describe('Array Mutation Safety', () => {
+    it('should not mutate input array when calling analyze', () => {
+      const commits = [
+        createMockCommit('c1', 'Alice', 'alice@example.com', new Date(), [
+          createMockFileChange('file1.ts', 10, 10, 0),
+        ]),
+        createMockCommit('c2', 'Bob', 'bob@example.com', new Date(), [
+          createMockFileChange('file2.ts', 20, 20, 0),
+        ]),
+        createMockCommit('c3', 'Charlie', 'charlie@example.com', new Date(), [
+          createMockFileChange('file3.ts', 5, 5, 0),
+        ]),
+      ];
+
+      const result = analyzer.analyze(commits);
+
+      // Get original order of files
+      const originalOrder = result.files.map(f => f.path);
+
+      // The files array should be in insertion order from the Map
+      // Not sorted by any metric
+      expect(originalOrder).toEqual(['file1.ts', 'file2.ts', 'file3.ts']);
+
+      // Verify hotspots are correctly sorted by change count
+      expect(result.hotspots[0]?.path).toBe('file1.ts'); // All have 1 change, so original order
+
+      // Verify largestChanges are sorted by total changes
+      expect(result.largestChanges[0]?.path).toBe('file2.ts'); // 20 changes
+      expect(result.largestChanges[1]?.path).toBe('file1.ts'); // 10 changes
+      expect(result.largestChanges[2]?.path).toBe('file3.ts'); // 5 changes
+    });
+  });
 });

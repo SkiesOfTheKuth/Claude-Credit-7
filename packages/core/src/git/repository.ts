@@ -1,7 +1,62 @@
 import { simpleGit, SimpleGit, DefaultLogFields, LogResult } from 'simple-git';
 import { resolve } from 'path';
-import { InvalidRepositoryError, GitOperationError } from '../utils/errors.js';
+import { InvalidRepositoryError, GitOperationError, InvalidOptionsError } from '../utils/errors.js';
 import type { Commit, RepositoryInfo, AnalysisOptions, CommitWithFiles, FileChange } from '../types/index.js';
+
+/**
+ * Interface for simple-git log response with file statistics
+ */
+interface GitLogEntryWithFiles {
+  hash: string;
+  date: string;
+  message: string;
+  author?: string;
+  email?: string;
+  refs?: string;
+  body?: string;
+  diff?: {
+    changed: number;
+    insertions: number;
+    deletions: number;
+    files: Array<{
+      file: string;
+      changes: number;
+      insertions: number;
+      deletions: number;
+      binary: boolean;
+    }>;
+  };
+}
+
+/**
+ * Type guard to validate git log entry structure
+ */
+function isValidGitLogEntry(obj: unknown): obj is GitLogEntryWithFiles {
+  if (typeof obj !== 'object' || obj === null) return false;
+  const entry = obj as Record<string, unknown>;
+
+  // Validate required fields
+  if (typeof entry.hash !== 'string' || entry.hash === '') return false;
+  if (typeof entry.date !== 'string' || entry.date === '') return false;
+  if (typeof entry.message !== 'string') return false;
+
+  // Validate optional fields if present
+  if (entry.author !== undefined && typeof entry.author !== 'string') return false;
+  if (entry.email !== undefined && typeof entry.email !== 'string') return false;
+  if (entry.refs !== undefined && typeof entry.refs !== 'string') return false;
+  if (entry.body !== undefined && typeof entry.body !== 'string') return false;
+
+  // Validate diff structure if present
+  if (entry.diff !== undefined) {
+    const diff = entry.diff as Record<string, unknown>;
+    if (typeof diff.changed !== 'number') return false;
+    if (typeof diff.insertions !== 'number') return false;
+    if (typeof diff.deletions !== 'number') return false;
+    if (!Array.isArray(diff.files)) return false;
+  }
+
+  return true;
+}
 
 /**
  * Wrapper around simple-git for repository operations
@@ -12,7 +67,21 @@ export class Repository {
   private repoPath: string;
 
   constructor(repoPath: string) {
-    this.repoPath = resolve(repoPath);
+    // Validate input
+    if (typeof repoPath !== 'string') {
+      throw new InvalidOptionsError('Repository path must be a string');
+    }
+
+    const trimmedPath = repoPath.trim();
+    if (trimmedPath === '') {
+      throw new InvalidOptionsError('Repository path cannot be empty or whitespace');
+    }
+
+    if (trimmedPath.length > 4096) {
+      throw new InvalidOptionsError('Repository path exceeds maximum length (4096 characters)');
+    }
+
+    this.repoPath = resolve(trimmedPath);
     this.git = simpleGit(this.repoPath);
   }
 
@@ -228,51 +297,42 @@ export class Repository {
 
       // Transform to our CommitWithFiles type
       return log.all.map((commit) => {
-        const rawCommit = commit as unknown as {
-          hash: string;
-          author?: string;
-          email?: string;
-          date: string;
-          message: string;
-          refs?: string;
-          body?: string;
-          diff?: {
-            changed: number;
-            insertions: number;
-            deletions: number;
-            files: Array<{
-              file: string;
-              changes: number;
-              insertions: number;
-              deletions: number;
-              binary: boolean;
-            }>;
-          };
-        };
+        // Validate git response structure
+        if (!isValidGitLogEntry(commit)) {
+          throw new GitOperationError(
+            'getCommitsWithFiles',
+            `Invalid commit format from git: missing required fields`
+          );
+        }
 
-        const files: FileChange[] = rawCommit.diff?.files
-          ? rawCommit.diff.files.map((f) => ({
-              file: f.file,
-              changes: f.changes,
-              insertions: f.insertions,
-              deletions: f.deletions,
-              binary: f.binary,
-            }))
+        const files: FileChange[] = commit.diff?.files
+          ? commit.diff.files.map((f) => {
+              // Handle different file types (text vs binary)
+              // Binary files don't have changes/insertions/deletions
+              const hasStats = 'changes' in f && 'insertions' in f && 'deletions' in f;
+              return {
+                file: f.file,
+                changes: hasStats ? (f as { changes: number }).changes : 0,
+                insertions: hasStats ? (f as { insertions: number }).insertions : 0,
+                deletions: hasStats ? (f as { deletions: number }).deletions : 0,
+                binary: f.binary,
+              };
+            })
           : [];
 
         return {
-          hash: rawCommit.hash,
-          author: rawCommit.author || 'Unknown',
-          email: rawCommit.email || '',
-          date: new Date(rawCommit.date),
-          message: rawCommit.message,
-          refs: rawCommit.refs || '',
-          body: rawCommit.body || '',
+          hash: commit.hash,
+          author: commit.author || 'Unknown',
+          email: commit.email || '',
+          date: new Date(commit.date),
+          message: commit.message,
+          refs: commit.refs || '',
+          body: commit.body || '',
           files,
           diffSummary: {
-            changed: rawCommit.diff?.changed || 0,
-            insertions: rawCommit.diff?.insertions || 0,
-            deletions: rawCommit.diff?.deletions || 0,
+            changed: commit.diff?.changed || 0,
+            insertions: commit.diff?.insertions || 0,
+            deletions: commit.diff?.deletions || 0,
           },
         };
       });

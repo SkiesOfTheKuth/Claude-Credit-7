@@ -102,7 +102,7 @@ export class FileAnalyzer {
    * Gets hotspot files (most frequently changed)
    */
   private getHotspots(files: FileStats[], count: number): FileStats[] {
-    return files
+    return [...files]
       .sort((a, b) => b.changeCount - a.changeCount)
       .slice(0, count);
   }
@@ -111,7 +111,7 @@ export class FileAnalyzer {
    * Gets files with largest total changes
    */
   private getLargestChanges(files: FileStats[], count: number): FileStats[] {
-    return files
+    return [...files]
       .sort((a, b) => b.totalChanges - a.totalChanges)
       .slice(0, count);
   }
