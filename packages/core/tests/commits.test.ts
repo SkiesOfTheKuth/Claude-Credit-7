@@ -289,6 +289,34 @@ describe('CommitAnalyzer', () => {
       expect(result.get(2)).toBe(1); // Tuesday
       expect(result.get(0)).toBe(0); // Sunday (no commits)
     });
+
+    describe('when in a non-UTC timezone', () => {
+      it('should use UTC day for grouping, not local day', () => {
+        // This date is a Sunday in UTC (2024-01-21 02:00:00Z)
+        // In America/New_York (UTC-5), it's Saturday, Jan 20, 9 PM.
+        const commitDate = new Date('2024-01-21T02:00:00Z');
+        const commits = [
+          createMockCommit(
+            'a1',
+            'Alice',
+            'alice@example.com',
+            commitDate,
+            'Commit on a Sunday morning in UTC'
+          ),
+        ];
+
+        // Pre-condition check to ensure the test setup is correct
+        // In NY, getDay() should return 6 (Saturday) when TZ is set
+        // getUTCDay() should always return 0 (Sunday)
+        expect(commitDate.getUTCDay()).toBe(0);
+
+        const result = analyzer.getCommitsByDayOfWeek(commits);
+
+        // The correct implementation (using getUTCDay()) puts it on day 0.
+        expect(result.get(0)).toBe(1); // Assert it's on Sunday
+        expect(result.get(6)).toBe(0); // Assert it's NOT on Saturday
+      });
+    });
   });
 
   describe('getCommitsByAuthor', () => {

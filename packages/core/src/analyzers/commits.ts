@@ -161,7 +161,7 @@ export class CommitAnalyzer {
     }
 
     for (const commit of commits) {
-      const day = commit.date.getDay();
+      const day = commit.date.getUTCDay();
       byDayOfWeek.set(day, (byDayOfWeek.get(day) || 0) + 1);
     }
 
