@@ -89,13 +89,22 @@ export class CommitAnalyzer {
    */
   private calculateDateRange(commits: Commit[]) {
     const dates = commits.map((c) => c.date.getTime());
-    const earliest = new Date(Math.min(...dates));
-    const latest = new Date(Math.max(...dates));
-    const spanDays = Math.ceil((latest.getTime() - earliest.getTime()) / (1000 * 60 * 60 * 24));
+    const earliestCommitDate = new Date(Math.min(...dates));
+    const latestCommitDate = new Date(Math.max(...dates));
+
+    // Normalize to the start of the day (UTC)
+    const startDay = new Date(earliestCommitDate);
+    startDay.setUTCHours(0, 0, 0, 0);
+
+    const endDay = new Date(latestCommitDate);
+    endDay.setUTCHours(0, 0, 0, 0);
+
+    const spanDays =
+      Math.round((endDay.getTime() - startDay.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
     return {
-      earliest,
-      latest,
+      earliest: earliestCommitDate,
+      latest: latestCommitDate,
       spanDays: spanDays || 1, // Ensure at least 1 day to avoid division by zero
     };
   }
