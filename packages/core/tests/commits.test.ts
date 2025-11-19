@@ -229,6 +229,38 @@ describe('CommitAnalyzer', () => {
       expect(result.commitsByHour.get(0)).toBe(0); // Hours with no commits should be 0
     });
 
+    it('should group commits by UTC hour, not local hour', () => {
+      class FixedOffsetDate extends Date {
+        constructor(...args: ConstructorParameters<typeof Date>) {
+          super(...args);
+        }
+
+        override getHours(): number {
+          const forcedOffsetHours = 5; // Pretend local time is UTC-5
+          return (super.getUTCHours() + 24 - forcedOffsetHours) % 24;
+        }
+      }
+
+      const commitDate = new FixedOffsetDate('2024-01-15T23:30:00Z');
+      const commits = [
+        createMockCommit(
+          'a1',
+          'Alice',
+          'alice@example.com',
+          commitDate,
+          'Late night UTC commit'
+        ),
+      ];
+
+      const result = analyzer.analyze(commits);
+      const localHour = commitDate.getHours();
+      const utcHour = commitDate.getUTCHours();
+
+      expect(localHour).not.toBe(utcHour);
+      expect(result.commitsByHour.get(utcHour)).toBe(1);
+      expect(result.commitsByHour.get(localHour)).toBe(0);
+    });
+
     it('should calculate average commits per day', () => {
       const commits = [
         createMockCommit('a1', 'Alice', 'alice@example.com', new Date('2024-01-01T10:00:00Z'), 'c1'),
