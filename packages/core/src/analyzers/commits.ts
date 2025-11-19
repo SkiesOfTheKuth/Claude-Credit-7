@@ -135,7 +135,7 @@ export class CommitAnalyzer {
     }
 
     for (const commit of commits) {
-      const hour = commit.date.getHours();
+      const hour = commit.date.getUTCHours();
       byHour.set(hour, (byHour.get(hour) || 0) + 1);
     }
 
