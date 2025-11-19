@@ -229,6 +229,34 @@ describe('CommitAnalyzer', () => {
       expect(result.commitsByHour.get(0)).toBe(0); // Hours with no commits should be 0
     });
 
+    it('should group commits by UTC hour, not local hour', () => {
+      // This date is 23:30 UTC. In a timezone like US/Eastern (UTC-5), this is 18:30.
+      // The current implementation uses getHours(), which would incorrectly use 18.
+      // The correct implementation should use getUTCHours(), which will correctly use 23.
+      const commits = [
+        createMockCommit(
+          'a1',
+          'Alice',
+          'alice@example.com',
+          new Date('2024-01-15T23:30:00Z'),
+          'Late night UTC commit'
+        ),
+      ];
+
+      const result = analyzer.analyze(commits);
+      const localHour = new Date('2024-01-15T23:30:00Z').getHours();
+      const utcHour = 23;
+
+      // This test will fail if the local timezone is not UTC.
+      // It asserts that the commit is grouped by the UTC hour.
+      expect(result.commitsByHour.get(utcHour)).toBe(1);
+
+      // And not grouped by the local hour, if different.
+      if (localHour !== utcHour) {
+        expect(result.commitsByHour.get(localHour)).toBe(0);
+      }
+    });
+
     it('should calculate average commits per day', () => {
       const commits = [
         createMockCommit('a1', 'Alice', 'alice@example.com', new Date('2024-01-01T10:00:00Z'), 'c1'),
