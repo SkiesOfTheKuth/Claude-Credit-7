@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { Repository, CommitAnalyzer, type Author } from '@git-analyzer/core';
+import { Repository, CommitAnalyzer, FileAnalyzer, type Author, type FileStats } from '@git-analyzer/core';
 import type { AnalysisOptions } from '@git-analyzer/core';
 
 /**
@@ -50,8 +50,8 @@ export function createAnalyzeCommand(): Command {
         spinner.text = 'Fetching repository information...';
         const repoInfo = await repo.getInfo();
 
-        // Fetch commits
-        spinner.text = 'Fetching commits...';
+        // Fetch commits with file information
+        spinner.text = 'Fetching commits and file changes...';
         const analysisOptions: Partial<AnalysisOptions> = {
           repoPath,
           branch: options.branch as string | undefined,
@@ -61,17 +61,32 @@ export function createAnalyzeCommand(): Command {
           maxCount: options.maxCount as number | undefined,
         };
 
-        const commits = await repo.getCommits(analysisOptions);
+        const commitsWithFiles = await repo.getCommitsWithFiles(analysisOptions);
 
-        if (commits.length === 0) {
+        if (commitsWithFiles.length === 0) {
           spinner.warn(chalk.yellow('No commits found matching the criteria'));
           process.exit(0);
         }
 
         // Analyze commits
         spinner.text = 'Analyzing commits...';
-        const analyzer = new CommitAnalyzer();
-        const analysis = analyzer.analyze(commits);
+        const commitAnalyzer = new CommitAnalyzer();
+        // Convert CommitWithFiles to Commit for backward compatibility
+        const commits = commitsWithFiles.map(c => ({
+          hash: c.hash,
+          author: c.author,
+          email: c.email,
+          date: c.date,
+          message: c.message,
+          refs: c.refs,
+          body: c.body,
+        }));
+        const analysis = commitAnalyzer.analyze(commits);
+
+        // Analyze file changes
+        spinner.text = 'Analyzing file changes...';
+        const fileAnalyzer = new FileAnalyzer();
+        const fileAnalysis = fileAnalyzer.analyze(commitsWithFiles);
 
         spinner.succeed(chalk.green('Analysis complete!'));
 
@@ -105,6 +120,28 @@ export function createAnalyzeCommand(): Command {
                     name: a.name,
                     email: a.email,
                     commitCount: a.commitCount,
+                  })),
+                },
+                fileAnalysis: {
+                  totalFiles: fileAnalysis.totalFiles,
+                  totalChanges: fileAnalysis.totalChanges,
+                  totalInsertions: fileAnalysis.totalInsertions,
+                  totalDeletions: fileAnalysis.totalDeletions,
+                  netChange: fileAnalysis.netChange,
+                  hotspots: fileAnalysis.hotspots.map((f: FileStats) => ({
+                    path: f.path,
+                    changeCount: f.changeCount,
+                    totalChanges: f.totalChanges,
+                    totalInsertions: f.totalInsertions,
+                    totalDeletions: f.totalDeletions,
+                    authorCount: f.authors.size,
+                    firstSeen: f.firstSeen.toISOString(),
+                    lastModified: f.lastModified.toISOString(),
+                  })),
+                  largestChanges: fileAnalysis.largestChanges.slice(0, 10).map((f: FileStats) => ({
+                    path: f.path,
+                    totalChanges: f.totalChanges,
+                    changeCount: f.changeCount,
                   })),
                 },
               },
@@ -203,6 +240,52 @@ export function createAnalyzeCommand(): Command {
             chalk.white(`${mostActiveDay} (${formatNumber(mostActiveDayCommits)} commits)`)
           );
           console.log('');
+
+          // File Analysis
+          console.log(chalk.bold.white('🔥 Code Hotspots & Metrics'));
+          console.log(
+            chalk.gray('  Total Files Changed:'),
+            chalk.white(formatNumber(fileAnalysis.totalFiles))
+          );
+          console.log(
+            chalk.gray('  Total Line Changes:'),
+            chalk.white(formatNumber(fileAnalysis.totalChanges))
+          );
+          console.log(
+            chalk.gray('  Lines Added:'),
+            chalk.green(`+${formatNumber(fileAnalysis.totalInsertions)}`)
+          );
+          console.log(
+            chalk.gray('  Lines Deleted:'),
+            chalk.red(`-${formatNumber(fileAnalysis.totalDeletions)}`)
+          );
+          console.log(
+            chalk.gray('  Net Change:'),
+            fileAnalysis.netChange >= 0
+              ? chalk.green(`+${formatNumber(fileAnalysis.netChange)}`)
+              : chalk.red(formatNumber(fileAnalysis.netChange))
+          );
+          console.log('');
+
+          // Top Hotspot Files
+          if (fileAnalysis.hotspots.length > 0) {
+            console.log(chalk.bold.white('🔥 Most Frequently Changed Files'));
+            fileAnalysis.hotspots.slice(0, 10).forEach((file: FileStats, index: number) => {
+              const percentage = ((file.changeCount / fileAnalysis.totalChanges) * 100).toFixed(1);
+              const authors = file.authors.size;
+              const authorLabel = authors === 1 ? 'author' : 'authors';
+
+              console.log(
+                chalk.gray(`  ${index + 1}.`),
+                chalk.white(file.path.padEnd(45)),
+                chalk.cyan(formatNumber(file.changeCount).padStart(4)),
+                chalk.gray('changes'),
+                chalk.yellow(`(${percentage}%)`),
+                chalk.gray(`• ${authors} ${authorLabel}`)
+              );
+            });
+            console.log('');
+          }
 
           console.log(chalk.bold.cyan('═══════════════════════════════════════════════'));
           console.log('');
