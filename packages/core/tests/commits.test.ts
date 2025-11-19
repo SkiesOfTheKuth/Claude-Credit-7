@@ -230,31 +230,35 @@ describe('CommitAnalyzer', () => {
     });
 
     it('should group commits by UTC hour, not local hour', () => {
-      // This date is 23:30 UTC. In a timezone like US/Eastern (UTC-5), this is 18:30.
-      // The current implementation uses getHours(), which would incorrectly use 18.
-      // The correct implementation should use getUTCHours(), which will correctly use 23.
+      class FixedOffsetDate extends Date {
+        constructor(...args: ConstructorParameters<typeof Date>) {
+          super(...args);
+        }
+
+        override getHours(): number {
+          const forcedOffsetHours = 5; // Pretend local time is UTC-5
+          return (super.getUTCHours() + 24 - forcedOffsetHours) % 24;
+        }
+      }
+
+      const commitDate = new FixedOffsetDate('2024-01-15T23:30:00Z');
       const commits = [
         createMockCommit(
           'a1',
           'Alice',
           'alice@example.com',
-          new Date('2024-01-15T23:30:00Z'),
+          commitDate,
           'Late night UTC commit'
         ),
       ];
 
       const result = analyzer.analyze(commits);
-      const localHour = new Date('2024-01-15T23:30:00Z').getHours();
-      const utcHour = 23;
+      const localHour = commitDate.getHours();
+      const utcHour = commitDate.getUTCHours();
 
-      // This test will fail if the local timezone is not UTC.
-      // It asserts that the commit is grouped by the UTC hour.
+      expect(localHour).not.toBe(utcHour);
       expect(result.commitsByHour.get(utcHour)).toBe(1);
-
-      // And not grouped by the local hour, if different.
-      if (localHour !== utcHour) {
-        expect(result.commitsByHour.get(localHour)).toBe(0);
-      }
+      expect(result.commitsByHour.get(localHour)).toBe(0);
     });
 
     it('should calculate average commits per day', () => {
