@@ -1,98 +1,74 @@
 # Git Repository Analyzer
 
-A powerful, production-ready tool for analyzing git repositories to provide deep insights into code evolution, team dynamics, technical debt, and project health.
+A Node.js/TypeScript toolkit for inspecting git repositories from the command line. The project is structured as a npm workspace with:
 
-## Features
+- **`packages/core`** – repository wrapper, commit/file analyzers, and shared types
+- **`packages/cli`** – Commander-based CLI that surfaces the core analysis in either formatted console output or JSON
 
-- 📊 **Commit Analytics**: Timeline analysis, distribution patterns, and statistics
-- 👥 **Author Insights**: Contributor rankings, team velocity, collaboration patterns
-- 📁 **Code Metrics**: Lines of code, language distribution, code growth trends
-- 🔥 **Hotspot Detection**: Identify frequently changing files and potential tech debt
-- 📈 **Beautiful Visualizations**: Interactive charts and graphs (coming soon)
-- 🚀 **High Performance**: Handles large repositories efficiently with streaming architecture
+## What it does
 
-## Quick Start
+- Validates repositories and reports path, current branch, remotes, and total commits
+- Retrieves commit history with optional filters (branch, author, date range, max count)
+- Aggregates commit activity (top authors, commits by day/hour, average commits per day)
+- Pulls per-commit file change statistics and summarizes hotspots and largest changes
+- Presents results as human-friendly tables or machine-readable JSON
 
-### Installation
+## Requirements
+
+- Node.js 18+
+- npm 9+
+
+## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/git-repo-analyzer.git
-cd git-repo-analyzer
-
-# Install dependencies
+# Install dependencies for all workspaces
 npm install
 
-# Build the project
+# Build the TypeScript packages
 npm run build
 ```
 
-### Usage
+## CLI usage
+
+After building, run the analyzer with the workspace helper or the packaged binary:
 
 ```bash
-# Analyze a local repository
-npm run cli -- analyze /path/to/repo
-
-# Analyze the current directory
+# Analyze the current repository with default formatting
 npm run cli -- analyze .
 
-# Analyze with filters
-npm run cli -- analyze /path/to/repo --since="6 months ago" --branch=main
+# Analyze another repository with filters
+npm run cli -- analyze /path/to/repo \
+  --branch main \
+  --since "2024-01-01" \
+  --until "2024-06-30" \
+  --author "user@example.com" \
+  --max-count 500
 
-# Get help
-npm run cli -- --help
+# Emit structured JSON instead of pretty text
+npm run cli -- analyze . --json
 ```
 
-## Architecture
+The CLI streams commits with file statistics, computes commit and file-level metrics, and prints a summary that includes top contributors, peak activity windows, and the most frequently changed files.
 
-This is a monorepo containing multiple packages:
+## Development scripts
 
-- **`packages/core`**: Core analysis engine with git operations and analyzers
-- **`packages/cli`**: Command-line interface for running analyses
-- **`packages/web`**: Web dashboard for visualizations (coming soon)
-- **`packages/server`**: API server for the web interface (coming soon)
-
-## Development
+Run these from the repository root:
 
 ```bash
-# Run tests
+# Build all workspaces
+npm run build
+
+# Execute tests for available packages
 npm test
 
-# Run linter
+# Lint and format source files
 npm run lint
-
-# Format code
 npm run format
 
-# Clean build artifacts
+# Clean workspace artifacts
 npm run clean
 ```
 
-## Technology Stack
-
-- **TypeScript**: Type-safe development
-- **Node.js**: Runtime environment
-- **simple-git**: Git operations
-- **Commander.js**: CLI framework
-- **Jest**: Testing framework
-- **ESLint + Prettier**: Code quality
-
-## Roadmap
-
-- [x] Phase 1: Foundation (Core + CLI)
-- [ ] Phase 2: Advanced Analytics (Code churn, metrics, branches)
-- [ ] Phase 3: Visualizations (D3.js charts, interactive dashboards)
-- [ ] Phase 4: Web UI (React dashboard)
-- [ ] Phase 5: Reports & Exports (PDF, Markdown, JSON)
-
-## Contributing
-
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.
-
 ## License
 
-MIT License - see LICENSE file for details
-
-## Author
-
-Built with ❤️ by Claude Code
+MIT License - see LICENSE for details.
