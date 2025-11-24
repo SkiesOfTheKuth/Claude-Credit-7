@@ -11,6 +11,7 @@ export const mockGitInstance = {
   getRemotes: jest.fn(),
   raw: jest.fn(),
   log: jest.fn(),
+  cwd: jest.fn().mockReturnThis(),
 } as unknown as SimpleGit;
 
 export const simpleGit = jest.fn(() => mockGitInstance);

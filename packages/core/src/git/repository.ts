@@ -8,12 +8,21 @@ import type { Commit, RepositoryInfo, AnalysisOptions, CommitWithFiles, FileChan
  * Provides a clean interface and proper error handling
  */
 export class Repository {
-  private git: SimpleGit;
+  private git?: SimpleGit;
   private repoPath: string;
 
   constructor(repoPath: string) {
     this.repoPath = resolve(repoPath);
-    this.git = simpleGit(this.repoPath);
+  }
+
+  private getGitInstance(): SimpleGit {
+    if (!this.git) {
+      this.git = simpleGit();
+    }
+
+    this.git.cwd?.(this.repoPath);
+
+    return this.git;
   }
 
   /**
@@ -21,7 +30,8 @@ export class Repository {
    */
   async isValid(): Promise<boolean> {
     try {
-      await this.git.revparse(['--git-dir']);
+      const git = this.getGitInstance();
+      await git.revparse(['--git-dir']);
       return true;
     } catch {
       return false;
@@ -72,7 +82,7 @@ export class Repository {
    */
   private async getCurrentBranch(): Promise<string> {
     try {
-      const status = await this.git.status();
+      const status = await this.getGitInstance().status();
       return status.current || 'HEAD';
     } catch (error) {
       throw new GitOperationError(
@@ -88,7 +98,7 @@ export class Repository {
    */
   private async getRemotes(): Promise<string[]> {
     try {
-      const remotes = await this.git.getRemotes();
+      const remotes = await this.getGitInstance().getRemotes();
       return remotes.map((r) => r.name);
     } catch (error) {
       throw new GitOperationError(
@@ -104,7 +114,7 @@ export class Repository {
    */
   private async getCommitCount(): Promise<number> {
     try {
-      const result = await this.git.raw(['rev-list', '--count', 'HEAD']);
+      const result = await this.getGitInstance().raw(['rev-list', '--count', 'HEAD']);
       return parseInt(result.trim(), 10);
     } catch (error) {
       // If HEAD doesn't exist (empty repo), return 0
@@ -157,13 +167,19 @@ export class Repository {
         logOptions.maxCount = options.maxCount;
       }
 
-      const log: LogResult<DefaultLogFields> = await this.git.log(logOptions);
+      const log: LogResult<DefaultLogFields> = await this.getGitInstance().log(logOptions);
 
       // Transform to our Commit type
       return log.all.map((commit) => ({
         hash: commit.hash,
-        author: (commit as { author?: string }).author || 'Unknown',
-        email: (commit as { email?: string }).email || '',
+        author:
+          (commit as { author?: string }).author ||
+          (commit as { author_name?: string }).author_name ||
+          'Unknown',
+        email:
+          (commit as { email?: string }).email ||
+          (commit as { author_email?: string }).author_email ||
+          '',
         date: new Date(commit.date),
         message: commit.message,
         refs: (commit as { refs?: string }).refs || '',
@@ -224,7 +240,7 @@ export class Repository {
         logOptions.maxCount = options.maxCount;
       }
 
-      const log = await this.git.log(logOptions);
+      const log = await this.getGitInstance().log(logOptions);
 
       // Transform to our CommitWithFiles type
       return log.all.map((commit) => {

@@ -4,6 +4,7 @@ export default {
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    'simple-git': '<rootDir>/tests/__mocks__/simple-git.ts',
   },
   transform: {
     '^.+\\.ts$': [
