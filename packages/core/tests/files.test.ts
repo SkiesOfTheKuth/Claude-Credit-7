@@ -65,7 +65,7 @@ describe('FileAnalyzer', () => {
       const result = analyzer.analyze(commits);
 
       expect(result.totalFiles).toBe(1);
-      expect(result.totalChanges).toBe(1);
+      expect(result.totalChanges).toBe(10);
       expect(result.totalInsertions).toBe(8);
       expect(result.totalDeletions).toBe(2);
       expect(result.netChange).toBe(6);
@@ -102,7 +102,7 @@ describe('FileAnalyzer', () => {
       const result = analyzer.analyze(commits);
 
       expect(result.totalFiles).toBe(1);
-      expect(result.totalChanges).toBe(3); // Changed in 3 commits
+      expect(result.totalChanges).toBe(23); // 10 + 5 + 8 lines changed
       expect(result.files[0]?.changeCount).toBe(3);
       expect(result.files[0]?.totalInsertions).toBe(18);
       expect(result.files[0]?.totalDeletions).toBe(5);

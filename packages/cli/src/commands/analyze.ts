@@ -270,8 +270,12 @@ export function createAnalyzeCommand(): Command {
           // Top Hotspot Files
           if (fileAnalysis.hotspots.length > 0) {
             console.log(chalk.bold.white('🔥 Most Frequently Changed Files'));
+            const totalFileChanges = fileAnalysis.files.reduce(
+              (sum, file) => sum + file.changeCount,
+              0
+            ) || 1;
             fileAnalysis.hotspots.slice(0, 10).forEach((file: FileStats, index: number) => {
-              const percentage = ((file.changeCount / fileAnalysis.totalChanges) * 100).toFixed(1);
+              const percentage = ((file.changeCount / totalFileChanges) * 100).toFixed(1);
               const authors = file.authors.size;
               const authorLabel = authors === 1 ? 'author' : 'authors';
 
