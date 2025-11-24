@@ -24,7 +24,8 @@ export class FileAnalyzer {
       let totalDeletions = 0;
 
       for (const file of files) {
-        totalChanges += file.changeCount;
+        // Use line-level changes rather than commit counts to reflect actual code churn
+        totalChanges += file.totalChanges;
         totalInsertions += file.totalInsertions;
         totalDeletions += file.totalDeletions;
       }
