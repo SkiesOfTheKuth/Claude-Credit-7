@@ -48,7 +48,8 @@ export class CommitAnalyzer {
     const authorMap = new Map<string, Author>();
 
     for (const commit of commits) {
-      const key = `${commit.author}<${commit.email}>`;
+      const identifier = (commit.email || commit.author || '').toLowerCase();
+      const key = identifier || commit.hash;
 
       if (!authorMap.has(key)) {
         authorMap.set(key, {

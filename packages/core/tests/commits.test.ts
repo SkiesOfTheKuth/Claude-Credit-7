@@ -120,6 +120,31 @@ describe('CommitAnalyzer', () => {
       expect(jane?.commitCount).toBe(1);
     });
 
+    it('should group commits by email even when author names differ', () => {
+      const commits = [
+        createMockCommit(
+          'abc123',
+          'John Doe',
+          'john@example.com',
+          new Date('2024-01-15T10:00:00Z'),
+          'Commit 1'
+        ),
+        createMockCommit(
+          'def456',
+          'John D.',
+          'john@example.com',
+          new Date('2024-01-16T11:00:00Z'),
+          'Commit 2'
+        ),
+      ];
+
+      const result = analyzer.analyze(commits);
+
+      expect(result.authors).toHaveLength(1);
+      expect(result.authors[0]?.name).toBe('John Doe');
+      expect(result.authors[0]?.commitCount).toBe(2);
+    });
+
     it('should calculate correct date range', () => {
       const commits = [
         createMockCommit(
