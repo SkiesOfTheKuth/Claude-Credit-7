@@ -46,7 +46,7 @@ export interface FileStats {
 export interface FileAnalysis {
   /** Total number of unique files changed */
   totalFiles: number;
-  /** Total file changes across all commits */
+  /** Total lines changed across all files */
   totalChanges: number;
   /** Total lines inserted across all files */
   totalInsertions: number;
