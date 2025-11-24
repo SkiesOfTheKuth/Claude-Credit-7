@@ -21,11 +21,21 @@ import {
   mockPermissionError,
 } from './fixtures/mockGitResponses.js';
 
-// Mock simple-git module
-jest.mock('simple-git');
+// Mock simple-git module with inline mock implementation
+const mockGitInstance = {
+  revparse: jest.fn(),
+  status: jest.fn(),
+  getRemotes: jest.fn(),
+  raw: jest.fn(),
+  log: jest.fn(),
+};
+
+await jest.unstable_mockModule('simple-git', () => ({
+  __esModule: true,
+  simpleGit: () => mockGitInstance,
+}));
 
 // Import after mocking
-const { mockGitInstance } = await import('./__mocks__/simple-git.js');
 const { Repository } = await import('../src/git/repository.js');
 const { InvalidRepositoryError, GitOperationError } = await import('../src/utils/errors.js');
 

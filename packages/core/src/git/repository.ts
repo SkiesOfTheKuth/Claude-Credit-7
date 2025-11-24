@@ -160,15 +160,29 @@ export class Repository {
       const log: LogResult<DefaultLogFields> = await this.git.log(logOptions);
 
       // Transform to our Commit type
-      return log.all.map((commit) => ({
-        hash: commit.hash,
-        author: (commit as { author?: string }).author || 'Unknown',
-        email: (commit as { email?: string }).email || '',
-        date: new Date(commit.date),
-        message: commit.message,
-        refs: (commit as { refs?: string }).refs || '',
-        body: (commit as { body?: string }).body || '',
-      }));
+      return log.all.map((commit) => {
+        const rawCommit = commit as unknown as {
+          hash: string;
+          author?: string;
+          author_name?: string;
+          email?: string;
+          author_email?: string;
+          date: string;
+          message: string;
+          refs?: string;
+          body?: string;
+        };
+
+        return {
+          hash: rawCommit.hash,
+          author: rawCommit.author || rawCommit.author_name || 'Unknown',
+          email: rawCommit.email || rawCommit.author_email || '',
+          date: new Date(rawCommit.date),
+          message: rawCommit.message,
+          refs: rawCommit.refs || '',
+          body: rawCommit.body || '',
+        };
+      });
     } catch (error) {
       throw new GitOperationError(
         'getCommits',
@@ -231,7 +245,9 @@ export class Repository {
         const rawCommit = commit as unknown as {
           hash: string;
           author?: string;
+          author_name?: string;
           email?: string;
+          author_email?: string;
           date: string;
           message: string;
           refs?: string;
@@ -262,8 +278,8 @@ export class Repository {
 
         return {
           hash: rawCommit.hash,
-          author: rawCommit.author || 'Unknown',
-          email: rawCommit.email || '',
+          author: rawCommit.author || rawCommit.author_name || 'Unknown',
+          email: rawCommit.email || rawCommit.author_email || '',
           date: new Date(rawCommit.date),
           message: rawCommit.message,
           refs: rawCommit.refs || '',
