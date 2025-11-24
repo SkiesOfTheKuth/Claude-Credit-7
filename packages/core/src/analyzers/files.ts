@@ -24,7 +24,7 @@ export class FileAnalyzer {
       let totalDeletions = 0;
 
       for (const file of files) {
-        totalChanges += file.changeCount;
+        totalChanges += file.totalChanges;
         totalInsertions += file.totalInsertions;
         totalDeletions += file.totalDeletions;
       }
